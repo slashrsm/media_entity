@@ -15,14 +15,6 @@ use Drupal\Core\Config\Entity\ConfigEntityInterface;
 interface MediaBundleInterface extends ConfigEntityInterface {
 
   /**
-   * Returns the type of the media bundle.
-   *
-   * @return string
-   *   Returns the type of the media bundle.
-   */
-  public function type();
-
-  /**
    * Returns the label.
    *
    * @param \Drupal\media_entity\MediaInterface $media
@@ -51,4 +43,28 @@ interface MediaBundleInterface extends ConfigEntityInterface {
    *   Returns the Media bundle description.
    */
   public function getDescription();
+
+  /**
+   * Returns the media type plugin.
+   *
+   * @return \Drupal\media_entity\MediaTypeInterface
+   *   The type.
+   */
+  public function getType();
+
+  /**
+   * Returns the media type configuration.
+   *
+   * @return array
+   *   The type configuration.
+   */
+  public function getTypeConfiguration();
+
+  /**
+   * Sets the media type configuration.
+   *
+   * @param array $configuration
+   *   The type configuration.
+   */
+  public function setTypeConfiguration($configuration);
 }

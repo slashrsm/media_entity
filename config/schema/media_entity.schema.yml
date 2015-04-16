@@ -1,3 +1,11 @@
+media_entity.settings:
+  type: mapping
+  label: 'Media entity settings'
+  mapping:
+    icon_base:
+      type: string
+      label: 'Base folder for icons installation'
+
 media_entity.bundle.*:
   type: config_entity
   label: 'Media bundle'
@@ -8,9 +16,19 @@ media_entity.bundle.*:
     label:
       type: label
       label: 'Label'
-    type:
-      type: label
-      label: 'Type'
     description:
       type: text
       label: 'Description'
+    type:
+      type: string
+      label: 'Type plugin ID'
+    third_party_settings:
+      type: sequence
+      label: 'Third party settings'
+      sequence:
+        type: media_entity.bundle.third_party.[%key]
+    type_configuration:
+      type: media_entity.bundle.type.[%type]
+    field_map:
+      type: mapping
+      label: 'Field map'

@@ -3,8 +3,11 @@
  * @file
  * Theme functions for the media_entity module.
  */
-use Drupal\Component\Utility\String;
+
+use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Url;
+use Drupal\Component\Utility\Html;
 
 /**
  * Prepares variables for list of available media bundles.
@@ -20,8 +23,9 @@ function template_preprocess_media_add_list(&$variables) {
   if (!empty($variables['content'])) {
     foreach ($variables['content'] as $bundle) {
       $link_text = '<span class="label">' . $bundle->label . '</span><div class="description">' . $bundle->description . '</div>';
+      $link_url = Url::fromRoute('media.add', array('media_bundle' => $bundle->id))->setOption('html', TRUE);
       $variables['bundles'][$bundle->id] = array(
-        'add_link' => l($link_text, 'media/add/' . $bundle->id, array('html' => TRUE)),
+        'add_link' => \Drupal::l($link_text, $link_url),
       );
     }
   }
@@ -40,7 +44,7 @@ function template_preprocess_media(&$variables) {
   /** @var \Drupal\media_entity\MediaInterface $media */
   $media = $variables['elements']['#media'];
 
-  $variables['name'] = String::checkPlain($media->getName());
+  $variables['name'] = SafeMarkup::checkPlain($media->label());
 
   // Helpful $content variable for templates.
   foreach (Element::children($variables['elements']) as $key) {
@@ -48,11 +52,11 @@ function template_preprocess_media(&$variables) {
   }
 
   $variables['attributes']['class'][] = 'media';
-  $variables['attributes']['class'][] = drupal_html_class('media-' . $media->getBundle());
+  $variables['attributes']['class'][] = Html::getClass('media-' . $media->bundle());
   if (!$media->isPublished()) {
     $variables['attributes']['class'][] = 'unpublished';
   }
   if ($variables['elements']['#view_mode']) {
-    $variables['attributes']['class'][] = drupal_html_class('view-mode-' . $variables['elements']['#view_mode']);
+    $variables['attributes']['class'][] = Html::getClass('view-mode-' . $variables['elements']['#view_mode']);
   }
 }

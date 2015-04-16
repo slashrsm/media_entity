@@ -8,6 +8,8 @@
 namespace Drupal\media_entity\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityBundleBase;
+use Drupal\Core\Entity\EntityWithPluginCollectionInterface;
+use Drupal\Core\Plugin\DefaultSingleLazyPluginCollection;
 use Drupal\media_entity\MediaBundleInterface;
 use Drupal\media_entity\MediaInterface;
 
@@ -30,17 +32,16 @@ use Drupal\media_entity\MediaInterface;
  *   bundle_of = "media",
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label",
- *     "type" = "type",
- *     "uuid" = "uuid"
+ *     "label" = "label"
  *   },
  *   links = {
- *     "edit-form" = "media.bundle_edit",
- *     "delete-form" = "media.bundle_delete_confirm"
+ *     "edit-form" = "/admin/structure/media/manage/{media_bundle}",
+ *     "delete-form" = "/admin/structure/media/manage/{media_bundle}/delete",
+ *     "collection" = "/admin/structure/media",
  *   }
  * )
  */
-class MediaBundle extends ConfigEntityBundleBase implements MediaBundleInterface {
+class MediaBundle extends ConfigEntityBundleBase implements MediaBundleInterface, EntityWithPluginCollectionInterface {
 
   /**
    * The machine name of this media bundle.
@@ -57,18 +58,39 @@ class MediaBundle extends ConfigEntityBundleBase implements MediaBundleInterface
   public $label;
 
   /**
-   * The type of this media bundle.
-   *
-   * @var string
-   */
-  public $type;
-
-  /**
    * A brief description of this media bundle.
    *
    * @var string
    */
   public $description;
+
+  /**
+   * The type plugin id.
+   *
+   * @var string
+   */
+  public $type = 'generic';
+
+  /**
+   * The type plugin configuration.
+   *
+   * @var array
+   */
+  public $type_configuration = array();
+
+  /**
+   * Type lazy plugin collection.
+   *
+   * @var \Drupal\Core\Plugin\DefaultSingleLazyPluginCollection
+   */
+  protected $typePluginCollection;
+
+  /**
+   * Field map. Fields provided by type plugin to be stored as entity fields.
+   *
+   * @var array
+   */
+  public $field_map = array();
 
   /**
    * {@inheritdoc}
@@ -80,8 +102,10 @@ class MediaBundle extends ConfigEntityBundleBase implements MediaBundleInterface
   /**
    * {@inheritdoc}
    */
-  public function type() {
-    return $this->type;
+  public function getPluginCollections() {
+    return array(
+      'type_configuration' => $this->typePluginCollection(),
+    );
   }
 
   /**
@@ -105,4 +129,40 @@ class MediaBundle extends ConfigEntityBundleBase implements MediaBundleInterface
   public function getDescription() {
     return $this->description;
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getTypeConfiguration() {
+    return $this->type_configuration;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setTypeConfiguration($configuration) {
+    $this->type_configuration = $configuration;
+    $this->typePluginCollection = NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getType() {
+    return $this->typePluginCollection()->get($this->type);
+  }
+
+  /**
+   * Returns type lazy plugin collection.
+   *
+   * @return \Drupal\Core\Plugin\DefaultSingleLazyPluginCollection
+   *   The tag plugin collection.
+   */
+  protected function typePluginCollection() {
+    if (!$this->typePluginCollection) {
+      $this->typePluginCollection = new DefaultSingleLazyPluginCollection(\Drupal::service('plugin.manager.media_entity.type'), $this->type, $this->type_configuration);
+    }
+    return $this->typePluginCollection;
+  }
+
 }

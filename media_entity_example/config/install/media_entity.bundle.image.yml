@@ -1,7 +1,0 @@
-id: image
-label: Images
-type: image
-description: 'Images of pretty puppies.'
-status: true
-langcode: en
-dependencies: {  }

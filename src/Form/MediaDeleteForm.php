@@ -7,46 +7,19 @@
 
 namespace Drupal\media_entity\Form;
 
-use Drupal\Core\Cache\Cache;
-use Drupal\Core\Entity\ContentEntityConfirmFormBase;
-use Drupal\Core\Form\FormStateInterface;
-use Drupal\media_entity\Entity\MediaBundle;
+use Drupal\Core\Entity\ContentEntityDeleteForm;
+use Drupal\Core\Url;
 
 /**
  * Provides a form for deleting a media.
  */
-class MediaDeleteForm extends ContentEntityConfirmFormBase {
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getQuestion() {
-    return t('Are you sure you want to delete %title?', array('%title' => $this->entity->label()));
-  }
+class MediaDeleteForm extends ContentEntityDeleteForm {
 
   /**
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return $this->entity->urlInfo();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getConfirmText() {
-    return t('Delete');
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function submit(array $form, FormStateInterface $form_state) {
-    $this->entity->delete();
-    $bundle = MediaBundle::getLabel($this->entity);
-    drupal_set_message(t('@type %title has been deleted.', array('@type' => $bundle, '%title' => $this->entity->label())));
-    Cache::invalidateTags(array('media' => TRUE));
-    $form_state->setRedirect('<front>');
+    return Url::fromUri('internal:/');
   }
 
 }

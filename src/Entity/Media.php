@@ -35,7 +35,6 @@ use Drupal\media_entity\MediaInterface;
  *   data_table = "media_field_data",
  *   revision_table = "media_revision",
  *   revision_data_table = "media_field_revision",
- *   fieldable = TRUE,
  *   translatable = TRUE,
  *   render_cache = TRUE,
  *   entity_keys = {
@@ -43,17 +42,18 @@ use Drupal\media_entity\MediaInterface;
  *     "revision" = "vid",
  *     "bundle" = "bundle",
  *     "label" = "name",
+ *     "langcode" = "langcode",
  *     "uuid" = "uuid"
  *   },
  *   bundle_entity_type = "media_bundle",
  *   permission_granularity = "entity_type",
  *   admin_permission = "administer media",
- *   field_ui_base_route = "media.bundle_edit",
+ *   field_ui_base_route = "entity.media_bundle.edit_form",
  *   links = {
- *     "canonical" = "media.view",
- *     "delete-form" = "media.delete_confirm",
- *     "edit-form" = "media.edit",
- *     "admin-form" = "media.bundle_edit"
+ *     "canonical" = "/media/{media}",
+ *     "delete-form" = "/media/{media}/delete",
+ *     "edit-form" = "/media/{media}/edit",
+ *     "admin-form" = "/admin/structure/media/manage/{media_bundle}"
  *   }
  * )
  */
@@ -68,28 +68,6 @@ class Media extends ContentEntityBase implements MediaInterface {
    * Value that represents the media being unpublished.
    */
   const NOT_PUBLISHED = 0;
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getBundle() {
-    return $this->bundle();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getName() {
-    return $this->get('name')->value;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setName($name) {
-    $this->set('name', $name);
-    return $this;
-  }
 
   /**
    * {@inheritdoc}
@@ -168,21 +146,6 @@ class Media extends ContentEntityBase implements MediaInterface {
   /**
    * {@inheritdoc}
    */
-  public function getResourceId() {
-    return $this->get('resource_id')->value;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setResourceId($id) {
-    $this->set('resource_id', $id);
-    return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function preSave(EntityStorageInterface $storage) {
     parent::preSave($storage);
 
@@ -195,6 +158,46 @@ class Media extends ContentEntityBase implements MediaInterface {
     if (!$this->get('revision_uid')->entity) {
       $this->set('revision_uid', $this->getPublisherId());
     }
+
+    /** @var \Drupal\media_entity\MediaBundleInterface $bundle */
+    $bundle = $this->entityManager()->getStorage('media_bundle')->load($this->bundle());
+
+    // Set thumbnail.
+    if (!$this->get('thumbnail')->entity) {
+      $thumbnail_uri = $bundle->getType()->thumbnail($this);
+
+      $existing = \Drupal::entityQuery('file')
+        ->condition('uri', $thumbnail_uri)
+        ->execute();
+
+      if ($existing) {
+        $this->thumbnail->target_id = reset($existing);
+      }
+      else {
+        /** @var \Drupal\file\FileInterface $file */
+        $file = $this->entityManager()->getStorage('file')->create(['uri' => $thumbnail_uri]);
+        $file->setOwner($this->getPublisher());
+        $file->setPermanent();
+        $file->save();
+        $this->thumbnail->target_id = $file->id();
+      }
+
+      // TODO - We should probably use something smarter (tokens, ...).
+      $this->thumbnail->alt = t('Thumbnail');
+      $this->thumbnail->title = $this->label();
+    }
+
+    // Try to set fields provided by type plugin and mapped in bundle
+    // configuration.
+    foreach ($bundle->field_map as $source_field => $destination_field) {
+      // Only save value in entity field if empty. Do not overwrite existing data.
+      // @TODO We might modify that in the future but let's leave it like this
+      // for now.
+      if ($this->hasField($destination_field) && $this->{$destination_field}->isEmpty() && ($value = $bundle->getType()->getField($this, $source_field))) {
+        $this->set($destination_field, $value);
+      }
+    }
+
   }
 
   /**
@@ -253,10 +256,31 @@ class Media extends ContentEntityBase implements MediaInterface {
       ->setDefaultValue('')
       ->setSetting('max_length', 255)
       ->setDisplayOptions('form', array(
+        'type' => 'string_textfield',
+        'weight' => -5,
+      ))
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayOptions('view', array(
+        'label' => 'hidden',
         'type' => 'string',
         'weight' => -5,
       ))
-      ->setDisplayConfigurable('form', TRUE);
+      ->setDisplayConfigurable('view', TRUE);
+
+    $fields['thumbnail'] = BaseFieldDefinition::create('image')
+      ->setLabel(t('Thumbnail'))
+      ->setDescription(t('The thumbnail of the media.'))
+      ->setRevisionable(TRUE)
+      ->setDisplayOptions('view', array(
+        'type' => 'image',
+        'weight' => 1,
+        'label' => 'hidden',
+        'settings' => array(
+          'image_style' => 'thumbnail',
+        ),
+      ))
+      ->setDisplayConfigurable('view', TRUE)
+      ->setReadOnly(TRUE);
 
     $fields['uid'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(t('Publisher ID'))
@@ -264,7 +288,13 @@ class Media extends ContentEntityBase implements MediaInterface {
       ->setRevisionable(TRUE)
       ->setDefaultValue(0)
       ->setSetting('target_type', 'user')
-      ->setTranslatable(TRUE);
+      ->setTranslatable(TRUE)
+      ->setDisplayOptions('view', array(
+        'label' => 'hidden',
+        'type' => 'author',
+        'weight' => 0,
+      ))
+      ->setDisplayConfigurable('view', TRUE);
 
     $fields['status'] = BaseFieldDefinition::create('boolean')
       ->setLabel(t('Publishing status'))
@@ -276,7 +306,18 @@ class Media extends ContentEntityBase implements MediaInterface {
       ->setLabel(t('Created'))
       ->setDescription(t('The time that the media was created.'))
       ->setTranslatable(TRUE)
-      ->setRevisionable(TRUE);
+      ->setRevisionable(TRUE)
+      ->setDisplayOptions('view', array(
+        'label' => 'hidden',
+        'type' => 'timestamp',
+        'weight' => 0,
+      ))
+      ->setDisplayConfigurable('view', TRUE)
+      ->setDisplayOptions('form', array(
+        'type' => 'datetime_timestamp',
+        'weight' => 10,
+      ))
+      ->setDisplayConfigurable('form', TRUE);
 
     $fields['changed'] = BaseFieldDefinition::create('changed')
       ->setLabel(t('Changed'))
@@ -287,14 +328,6 @@ class Media extends ContentEntityBase implements MediaInterface {
     $fields['type'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Type'))
       ->setDescription(t('The type of this media.'))
-      ->setRequired(TRUE)
-      ->setSetting('max_length', 255)
-      ->setRevisionable(TRUE)
-      ->setTranslatable(TRUE);
-
-    $fields['resource_id'] = BaseFieldDefinition::create('string')
-      ->setLabel(t('Resource ID'))
-      ->setDescription(t('The unique identifier of media resource that is associated with this media.'))
       ->setRequired(TRUE)
       ->setSetting('max_length', 255)
       ->setRevisionable(TRUE)

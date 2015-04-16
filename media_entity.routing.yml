@@ -1,7 +1,7 @@
-media.view:
+entity.media.canonical:
   path: '/media/{media}'
   defaults:
-    _content: '\Drupal\media_entity\Controller\MediaController::page'
+    _controller: '\Drupal\media_entity\Controller\MediaController::page'
     _title_callback: '\Drupal\media_entity\Controller\MediaController::pageTitle'
   requirements:
     _entity_access: 'media.view'
@@ -10,7 +10,7 @@ media.add_page:
   path: '/media/add'
   defaults:
     _title: 'Add media'
-    _content: '\Drupal\media_entity\Controller\MediaController::addPage'
+    _controller: '\Drupal\media_entity\Controller\MediaController::addPage'
   options:
     _access_mode: 'ANY'
     _admin_route: TRUE
@@ -20,14 +20,14 @@ media.add_page:
 media.add:
   path: '/media/add/{media_bundle}'
   defaults:
-    _content: '\Drupal\media_entity\Controller\MediaController::add'
+    _controller: '\Drupal\media_entity\Controller\MediaController::add'
     _title_callback: '\Drupal\media_entity\Controller\MediaController::addPageTitle'
   options:
     _admin_route: TRUE
   requirements:
     _entity_create_access: 'media:{media_bundle}'
 
-media.edit:
+entity.media.edit_form:
   path: '/media/{media}/edit'
   defaults:
     _entity_form: 'media.edit'
@@ -36,7 +36,7 @@ media.edit:
   requirements:
     _entity_access: 'media.update'
 
-media.delete_confirm:
+entity.media.delete_form:
   path: '/media/{media}/delete'
   defaults:
     _entity_form: 'media.delete'
@@ -45,7 +45,7 @@ media.delete_confirm:
   requirements:
     _entity_access: 'media.delete'
 
-media.overview_bundles:
+entity.media_bundle.collection:
   path: '/admin/structure/media'
   defaults:
     _entity_list: 'media_bundle'
@@ -60,14 +60,14 @@ media.bundle_add:
   requirements:
     _permission: 'administer media'
 
-media.bundle_edit:
+entity.media_bundle.edit_form:
   path: '/admin/structure/media/manage/{media_bundle}'
   defaults:
     _entity_form: 'media_bundle.edit'
   requirements:
     _permission: 'administer media'
 
-media.bundle_delete_confirm:
+entity.media_bundle.delete_form:
   path: '/admin/structure/media/manage/{media_bundle}/delete'
   defaults:
     _entity_form: 'media_bundle.delete'
